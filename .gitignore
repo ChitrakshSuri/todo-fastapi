@@ -16,6 +16,7 @@ venv/
 
 # DB
 *.sqlite3
+todos.db
 
 # Logs
 *.log
