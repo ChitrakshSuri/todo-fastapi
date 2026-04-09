@@ -81,9 +81,11 @@ def edit_todo(user: user_dependency, db: db_dependency, todo_request: TodoReques
 
 
 @router.delete("/todo/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_todo(db: db_dependency, todo_id: int, todo_request: TodoRequest):
-    todo_model = db.query(Todos).filter(Todos.id == todo_id).first()
+def delete_todo(user: user_dependency, db: db_dependency, todo_id: int, todo_request: TodoRequest):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication Failed")
+    todo_model = db.query(Todos).filter(Todos.id == todo_id).filter(Todos.owner_id == user.get("id")).first()
     if not todo_model:
         raise HTTPException(status_code=404, detail="item not found")
-    db.query(Todos).filter(Todos.id == todo_id).delete()
+    db.query(Todos).filter(Todos.id == todo_id).filter(Todos.owner_id == user.get("id")).delete()
     db.commit()
