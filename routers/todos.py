@@ -25,7 +25,7 @@ user_dependency = Annotated[dict, Depends(get_current_user)]
 class TodoRequest(BaseModel):
     title: str = Field(min_length=3)
     description: str = Field(min_length=3, max_length=100)
-    priorities: int = Field(gt=0, lt=6)
+    priority: int = Field(gt=0, lt=6)
     complete: bool
 
 
@@ -73,7 +73,7 @@ def edit_todo(user: user_dependency, db: db_dependency, todo_request: TodoReques
         raise HTTPException(status_code=404, detail="item not found")
     todo_model.title = todo_request.title
     todo_model.description = todo_request.description
-    todo_model.priorities = todo_request.priorities
+    todo_model.priority = todo_request.priority
     todo_model.complete = todo_request.complete
 
     db.add(todo_model)
