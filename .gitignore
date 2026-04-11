@@ -18,6 +18,7 @@ venv/
 *.sqlite3
 todos.db
 todosapp.db
+testdb.db
 
 # Logs
 *.log
