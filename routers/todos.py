@@ -7,7 +7,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 from .auth import get_current_user
 
-router = APIRouter()
+router = APIRouter(prefix="/todos", tags=["todos"])
 
 
 def get_db():
@@ -65,10 +65,20 @@ def create_todo(user: user_dependency, db: db_dependency, todo_request: TodoRequ
 
 
 @router.put("/todo/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
-def edit_todo(user: user_dependency, db: db_dependency, todo_request: TodoRequest, todo_id: int = Path(gt=0)):
+def edit_todo(
+    user: user_dependency,
+    db: db_dependency,
+    todo_request: TodoRequest,
+    todo_id: int = Path(gt=0),
+):
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication Failed")
-    todo_model = db.query(Todos).filter(Todos.id == todo_id).filter(Todos.owner_id == user.get("id")).first()
+    todo_model = (
+        db.query(Todos)
+        .filter(Todos.id == todo_id)
+        .filter(Todos.owner_id == user.get("id"))
+        .first()
+    )
     if not todo_model:
         raise HTTPException(status_code=404, detail="item not found")
     todo_model.title = todo_request.title
@@ -84,8 +94,15 @@ def edit_todo(user: user_dependency, db: db_dependency, todo_request: TodoReques
 def delete_todo(user: user_dependency, db: db_dependency, todo_id: int):
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication Failed")
-    todo_model = db.query(Todos).filter(Todos.id == todo_id).filter(Todos.owner_id == user.get("id")).first()
+    todo_model = (
+        db.query(Todos)
+        .filter(Todos.id == todo_id)
+        .filter(Todos.owner_id == user.get("id"))
+        .first()
+    )
     if not todo_model:
         raise HTTPException(status_code=404, detail="item not found")
-    db.query(Todos).filter(Todos.id == todo_id).filter(Todos.owner_id == user.get("id")).delete()
+    db.query(Todos).filter(Todos.id == todo_id).filter(
+        Todos.owner_id == user.get("id")
+    ).delete()
     db.commit()
