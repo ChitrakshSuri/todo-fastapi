@@ -8,8 +8,9 @@ from routers.auth import (
     create_access_token,
 )
 from jose import jwt
-from fastapi import status
+from fastapi import status, HTTPException
 from datetime import timedelta
+import pytest
 
 app.dependency_overrides[get_db] = override_get_db
 app.dependency_overrides[get_current_user] = override_get_current_user
@@ -40,3 +41,22 @@ def test_authenticate(test_user):
         assert decoded_token.get("sub") == username
         assert decoded_token.get("id") == user_id
         assert decoded_token.get("role") == role
+
+
+@pytest.mark.anyio
+async def test_get_current_user_valid_token():
+    encode = {"sub": "test_user", "id": 1, "role": "admin"}
+    token = jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+    user = await get_current_user(token=token)
+    assert user == {"username": "test_user", "id": 1, "user_role": "admin"}
+
+
+@pytest.mark.anyio
+async def test_get_current_user_missing_payload():
+    encode = {"role": "user"}
+    token = jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+
+    with pytest.raises(HTTPException) as excinfo:
+        await get_current_user(token=token)
+    assert excinfo.value.status_code == 401
+    assert excinfo.value.detail == "Could not validate user"
