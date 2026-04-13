@@ -7,6 +7,7 @@ from typing import Annotated
 from sqlalchemy.orm import Session
 from starlette import status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from sqlalchemy.exc import IntegrityError
 from jose import jwt, JWTError
 from datetime import timedelta, datetime, timezone
 from fastapi.templating import Jinja2Templates
@@ -17,7 +18,7 @@ SECRET_KEY = "3f1188bf4a99021805b037bd95727d21e72a3c0aba965c251ee6220cb37797a4"
 ALGORITHM = "HS256"
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl="auth/token")
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="auth/token", auto_error=False)
 
 
 class CreateUserRequest(BaseModel):
@@ -78,7 +79,7 @@ def create_access_token(
     return jwt_token_generated
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
+def decode_access_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -96,9 +97,31 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
         )
 
 
+async def get_current_user(
+    request: Request, token: Annotated[str | None, Depends(oauth2_bearer)]
+):
+    if token is None:
+        token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    return decode_access_token(token)
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
+    existing_user = (
+        db.query(Users).filter(Users.username == create_user_request.username).first()
+    )
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists",
+        )
+
     create_user_model = Users(
         email=create_user_request.email,
         username=create_user_request.username,
@@ -110,7 +133,14 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
         phone_number=create_user_request.phone_number,
     )
     db.add(create_user_model)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists",
+        )
 
 
 @router.post("/token", response_model=Token)

@@ -148,10 +148,10 @@
                 if (response.ok) {
                     // Handle success (e.g., redirect to dashboard)
                     const data = await response.json();
-                    // Delete any cookies available
-                    logout();
+                    // Clear any old auth cookie before saving the fresh token.
+                    clearCookies();
                     // Save token to cookie
-                    document.cookie = `access_token=${data.access_token}; path=/`;
+                    document.cookie = `access_token=${data.access_token}; path=/; SameSite=Lax`;
                     window.location.href = '/todos/todo-page'; // Change this to your desired redirect page
                 } else {
                     // Handle error
@@ -204,7 +204,7 @@
                 } else {
                     // Handle error
                     const errorData = await response.json();
-                    alert(`Error: ${errorData.message}`);
+                    alert(`Error: ${errorData.detail}`);
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -233,7 +233,7 @@
         return cookieValue;
     };
 
-    function logout() {
+    function clearCookies() {
         // Get all cookies
         const cookies = document.cookie.split(";");
     
@@ -245,6 +245,10 @@
             // Set the cookie's expiry date to a past date to delete it
             document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
         }
+    }
+
+    function logout() {
+        clearCookies();
     
         // Redirect to the login page
         window.location.href = '/auth/login-page';
