@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from jose import jwt, JWTError
 from datetime import timedelta, datetime, timezone
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -49,13 +50,41 @@ db_dependency = Annotated[Session, Depends(get_db)]
 templates = Jinja2Templates(directory="templates")
 
 
+def get_user_from_cookie(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        return None
+    try:
+        return decode_access_token(token)
+    except HTTPException:
+        return None
+
+
+def redirect_to_login():
+    response = RedirectResponse(
+        url="/auth/login-page", status_code=status.HTTP_302_FOUND
+    )
+    response.delete_cookie(key="access_token")
+    return response
+
+
 ### pages ###
 @router.get("/login-page")
 def render_login_page(request: Request):
+    user = get_user_from_cookie(request)
+    if user:
+        return RedirectResponse(url="/todos/todo-page", status_code=status.HTTP_302_FOUND)
+    if request.cookies.get("access_token"):
+        return redirect_to_login()
     return templates.TemplateResponse(request=request, name="login.html")
 
 @router.get("/register-page")
 def render_register_page(request: Request):
+    user = get_user_from_cookie(request)
+    if user:
+        return RedirectResponse(url="/todos/todo-page", status_code=status.HTTP_302_FOUND)
+    if request.cookies.get("access_token"):
+        return redirect_to_login()
     return templates.TemplateResponse(request=request, name="register.html")
 
 
