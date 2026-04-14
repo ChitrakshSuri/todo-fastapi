@@ -44,7 +44,9 @@ def redirect_to_login():
 ### pages ###
 @router.get("/todo-page")
 async def render_todo_page(
-    request: Request, db: db_dependency, user: Annotated[dict, Depends(get_current_user)]
+    request: Request,
+    db: db_dependency,
+    user: Annotated[dict, Depends(get_current_user)],
 ):
     try:
         todos = db.query(Todos).filter(Todos.owner_id == user.get("id")).all()
@@ -55,6 +57,21 @@ async def render_todo_page(
         )
     except HTTPException:
         return redirect_to_login()
+
+
+@router.get("/add-todo-page")
+async def render_add_todo_page(
+    request: Request,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    if user is None:
+        return redirect_to_login()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="add-todo.html",
+        context={"user": user},
+    )
 
 
 ### endpoints ###
